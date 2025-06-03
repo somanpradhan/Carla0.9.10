@@ -44,10 +44,17 @@ def target_velocity(yaw, pitch, speed, desired_speed):
         desired_speed = speed + 0.3
     elif speed > desired_speed:
         desired_speed = speed - 0.3
+
+    
     
     vx = desired_speed * cos(yaw) * cos(pitch)
     vy = desired_speed * sin (yaw) * cos(pitch)
     vz = desired_speed * sin(pitch)
+
+    if desired_speed == 0:
+        vx = 0
+        vy = 0
+        vz = 0
     
     return carla.Vector3D(vx, vy, vz)
 
@@ -55,7 +62,7 @@ def target_velocity(yaw, pitch, speed, desired_speed):
 
 
 # Change speed of the Vehicle
-def change_speed(world,map, vechicle, desired_speed, last_stop_time):
+def change_speed(world, some_state, map, vechicle, desired_speed, last_stop_time):
     """
     Change the speed of the vehicle based on the distance to the target
     :param vechicle: The vehicle to control
@@ -68,20 +75,29 @@ def change_speed(world,map, vechicle, desired_speed, last_stop_time):
     pitch = radians(transform.rotation.pitch)
     traffic_light_state = str(vechicle.get_traffic_light_state())
     current_time = time.time()
-    if (traffic_light_state == "Red" or traffic_light_state == "Yellow") and (is_red_light_ahead(vechicle, world, map)):
+    if some_state or ((traffic_light_state == "Red" or traffic_light_state == "Yellow") and (is_red_light_ahead(vechicle, world, map))):
         desired_speed = 0
 
     vehicle_list = world.get_actors().filter("*vehicle*")
+    person_list = world.get_actors().filter("*walker*")
+    distance = 100
     for v in vehicle_list:
         if desired_speed == 0:
             break
-        if v != vechicle:
-            v_location = v.get_transform().location
-            infront, dist = is_vehicle_ahead(vechicle, v_location)
-            if infront and dist < 8.0:
+        if v.id != vechicle.id:
+            infront, dist = is_something_ahead(vechicle, v)
+            if infront and dist < 10.0 and dist < distance:
                 velo = v.get_velocity()
                 desired_speed = (velo.x**2 + velo.y**2 + velo.z**2)**0.5
-                print("vehicle is near")
+                distance = dist
+    for p in person_list:
+        if desired_speed == 0:
+            break
+        infront, dist = is_something_ahead(vechicle, p, max_angle=20)
+
+        if infront and dist < 15.0 :
+            desired_speed = 0
+                
 
     # Get the current speed of the vehicle
     speed = (velocity.x**2 + velocity.y**2 + velocity.z**2)**0.5
@@ -90,12 +106,16 @@ def change_speed(world,map, vechicle, desired_speed, last_stop_time):
     new_velocity = target_velocity(yaw, pitch, speed, desired_speed)
     
     # Set the new velocity of the vehicle
-    if new_velocity is not None:
+    if desired_speed == 0:
+        vechicle.apply_control(carla.VehicleControl(throttle=0.0, brake=1.0, steer = 0))
+    elif new_velocity is not None:
         vechicle.set_target_velocity(new_velocity)
     return last_stop_time
 
 # Check if the vehicle is a head
-def is_vehicle_ahead(ego_vehicle, target_location, max_distance=215, max_angle=90):
+def is_something_ahead(ego_vehicle, target, max_distance=20,  max_angle=90):
+
+    target_location = target.get_transform().location
     ego_transform = ego_vehicle.get_transform()
     ego_location = ego_transform.location
     ego_forward = ego_transform.get_forward_vector()
@@ -110,7 +130,7 @@ def is_vehicle_ahead(ego_vehicle, target_location, max_distance=215, max_angle=9
     dot = (ego_forward.x * direction_vector.x +
                 ego_forward.y * direction_vector.y +
                 ego_forward.z * direction_vector.z)
-    distance = ((target_location.x - ego_location.y)**2 + 
+    distance = ((target_location.x - ego_location.x)**2 + 
                 (target_location.y - ego_location.y)**2 + 
                 (target_location.z - ego_location.z)**2)**0.5
     if distance > max_distance:
@@ -123,11 +143,15 @@ def is_vehicle_ahead(ego_vehicle, target_location, max_distance=215, max_angle=9
 
 # Normalize Vector
 def normalize_vector(v):
-    norm = (v.x**2 + v.y**2 + v.z**2)**2
+    norm = (v.x**2 + v.y**2 + v.z**2)**0.5  # Correct: Euclidean norm (L2)
     if norm == 0:
         return carla.Vector3D(0, 0, 0)
     return carla.Vector3D(v.x / norm, v.y / norm, v.z / norm)
 
+def is_pedestrian_ahead(egro_vechile, pedestrainLocation, max_distance, angle ):
+    #do something
+
+    pass
 
 
 # Check the red light ahead infornt

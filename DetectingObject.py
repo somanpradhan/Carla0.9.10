@@ -6,15 +6,21 @@ from ultralytics import YOLO
 from Lane_Detection import process_image_lane
 
 
+# Define Area of Interest (AOI) in image coordinates
+AOI_LEFT = 250
+AOI_RIGHT = 550
+AOI_TOP = 300
+AOI_BOTTOM = 600
+
 # Load the YOLOv8 model
 #model = YOLO("C:\\Users\\acer\\carla\\carla\\Build\\UE4Carla\\0.9.10-dirty\\WindowsNoEditor\\PythonAPI\\OurCode\\train2\\weights\\best.pt").to("cuda")
 #model = YOLO("F:\\augmented\\augmented\\runs\\detect\\train6\\weights\\best.pt").to("cuda")
-#model = YOLO("F:\\augmented\\augmented\\best_model.pt").to("cuda")
+model = YOLO("F:\\augmented\\augmented\\best_model.pt").to("cuda")
 #model = YOLO("yolov8n.pt").to("cuda")
-model = YOLO("G:\\Training\\Training\\runs\\detect\\train8\\weights\\best.pt").to("cuda")  # Load the YOLOv8 model (Replace with your trained model path)
+# model = YOLO("G:\\Training\\Training\\runs\\detect\\train8\\weights\\best.pt").to("cuda")  # Load the YOLOv8 model (Replace with your trained model path)
 #@staticmethod
 def parse_image(image):
-    state = True
+    state = False
     if image is None:
         return None
     
@@ -24,38 +30,66 @@ def parse_image(image):
     # Convert RGBA to BGR for OpenCV
     frame = array[:, :, :3].copy()
 
-    #frame_resized = cv2.resize(frame, (480, 320))
 
-     # ✅ Convert image to Tensor (Move to GPU)
+     #  Convert image to Tensor (Move to GPU)
 
-    # Run YOLOv8 detection (direct tensor conversion for speed)
-    #results = model(frame_resized, verbose=False)[0]
     results = model(frame, verbose=False)[0]
     labels = []
+    image_center_x = image.width / 2
     for box in results.boxes:
         x1, y1, x2, y2 = map(int, box.xyxy[0])  
         conf = float(box.conf[0])
         label = model.names[int(box.cls[0])]
 
-        # Scale bounding boxes back to original resolution
-        #x1 = int(x1 * frame.shape[1] / 480)
-        #x2 = int(x2 * frame.shape[1] / 480)
-        #y1 = int(y1 * frame.shape[0] / 320)
-        #y2 = int(y2 * frame.shape[0] / 320)
-
         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
         cv2.putText(frame, f"{label} {conf:.2f}", (x1, y1 - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-        if conf >= 0.85:
+        if conf >= 0.75:
             labels.append(label)
+            if label == "pedestrian":
+                # Bounding box
+                bbox_left = x1
+                bbox_top = y1
+                bbox_right = x2
+                bbox_bottom = y2
+
+        # AOI rectangle
+        # (define these globally or earlier in your code)
+        # AOI_LEFT, AOI_TOP, AOI_RIGHT, AOI_BOTTOM
+
+        # Check if bounding box intersects with AOI
+                inter_left = max(x1, AOI_LEFT)
+                inter_top = max(y1, AOI_TOP)
+                inter_right = min(x2, AOI_RIGHT)
+                inter_bottom = min(y2, AOI_BOTTOM)
+
+                inter_width = max(0, inter_right - inter_left)
+                inter_height = max(0, inter_bottom - inter_top)
+                intersection_area = inter_width * inter_height
+
+                # Total area of bounding box
+                bbox_area = (x2 - x1) * (y2 - y1)
+                in_aoi = False
+
+                if bbox_area != 0:
+                    overlap_ratio = intersection_area / bbox_area
+                    in_aoi = overlap_ratio >= 0.3
+
+                bbox_height = y2 - y1
+                bbox_width = x2 - x1
+
+                #AOI Check
+                #Distance check
+                close_enough = bbox_height >= 180 or bbox_width >= 50
+            # Heuristic: close if tall box, centered if near middle of screen
+                if in_aoi and close_enough:
+                    state = True
+
 
     # Convert back to Pygame format
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    #frame = frame[:, :, ::-1]
-    #frame = cv2.transpose(frame)
-    #frame = cv2.flip(frame, 0)
-    #return pygame.surfarray.make_surface(np.rot90(frame))
-    if not(state):
-        return pygame.surfarray.make_surface(frame.swapaxes(0, 1)), labels
-    surface = process_image_lane(frame)
-    return surface, labels
+    # if not(state):
+    #     return pygame.surfarray.make_surface(frame.swapaxes(0, 1)), labels
+    # surface = process_image_lane(frame)
+    # return surface,state, labels
+    return pygame.surfarray.make_surface(frame.swapaxes(0, 1)), state, labels

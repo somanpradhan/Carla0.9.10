@@ -159,9 +159,9 @@ class World(object):
 
     def render(self, display):
         """ Method to render the world """
-        labels = self.camera_manager.render(display)
+        state, labels = self.camera_manager.render(display)
         self.hud.render(self, display)
-        return labels
+        return state, labels
 
     def destroy_sensor(self):
         """Destroy the camera sensor"""
@@ -229,6 +229,7 @@ class CameraManager(object):
     def __init__(self, parent_actor, gamma_correction, width, height):
         self.sensor = None
         self.labels = []
+        self.state = False
         self.surface = None
         self._parent = parent_actor
         self._gamma = gamma_correction
@@ -254,14 +255,16 @@ class CameraManager(object):
         if self.surface is not None:
             display.blit(self.surface, (0, 0))
             if self.labels:
-                return self.labels
+                return self.state, self.labels
+            else: 
+                return self.state, []
 
     @staticmethod
     def _parse_image(weak_self, image):
         self = weak_self()
         if self is None:
             return
-        self.surface, self.labels = DetectingObject.parse_image(image)
+        self.surface, self.state, self.labels = DetectingObject.parse_image(image)
 
 
 def game_loop(args):
@@ -289,6 +292,18 @@ def game_loop(args):
         controller = KeyboardControl(world)
         status = True
         data = True
+        data = False
+        traffic_lights = world.world.get_actors().filter('traffic.traffic_light')
+        night = carla.WeatherParameters(
+            sun_altitude_angle=-90.0  # Makes it fully night
+            )
+
+        world.world.set_weather(night)
+
+        for light in traffic_lights:
+            light.set_state(carla.TrafficLightState.Green)
+            light.freeze(True)  # This keeps it green permanently
+
 
 # for the implementing the agent code
         spawn_points = world.map.get_spawn_points()
@@ -308,7 +323,9 @@ def game_loop(args):
         clock = pygame.time.Clock()
         print("Starting simulation")
         last_stop_time = time.time() - 86400
+        state_time = time.time() - 86400
 
+        vechicle_speed_state = time.time() - 86400
 
         while True:
             if controller.parse_events():
@@ -319,26 +336,47 @@ def game_loop(args):
 
             world.world.wait_for_tick(10.0)
 
-            labels = world.render(display)
+            state, labels = world.render(display)
             pygame.display.flip()
+
+            current_time = time.time()
+
+
+            if state:
+               state_time = time.time()
+            
+
+            some_state = False
+
 #        Changing the desired speed based on Sign Detected
             if labels is None:
                 pass
+            elif current_time - state_time < 10.0:
+                some_state = True
+                desired_speed = 0
+                print ("Pedestrian detected, stopping vehicle");
+            
             elif "crosswalk" in labels:
-                desired_speed = 20/3.6
-            elif "school-sign" in labels: 
-                desired_speed = 18/3.6
+                desired_speed = 15/3.6
+                vechicle_speed_state = time.time() - 10
+            elif "pedestrian-crosswalk" in labels: 
+                desired_speed = 10/3.6
+                vechicle_speed_state = time.time() - 20
             elif "speed-30" in labels:
-                desired_speed = 30/3.6
+                desired_speed = 20/3.6
+                vechicle_speed_state = time.time()
                 print(labels)
             elif "speed-60" in labels:
-                desired_speed = 40/3.6
+                desired_speed = 30/3.6
+                vechicle_speed_state = time.time()
                 print(labels)
+            elif current_time - vechicle_speed_state >= 40:
+                desired_speed = 8.16
 
 # Using autopilot code
             if (data):
                 world.player.set_autopilot(True, tm_port)
-                last_stop_time = change_speed(client.get_world(), world.map, world.player, desired_speed, last_stop_time)
+                last_stop_time = change_speed(client.get_world(),some_state, world.map, world.player, desired_speed, last_stop_time)
 
 # Using Behaviour agent
             else:
