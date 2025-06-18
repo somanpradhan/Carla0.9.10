@@ -95,8 +95,11 @@ def change_speed(world, some_state, map, vechicle, desired_speed, last_stop_time
             break
         infront, dist = is_something_ahead(vechicle, p, max_angle=20)
 
-        if infront and dist < 15.0 :
-            desired_speed = 0
+        if infront and dist < 10.0:
+            waypoint = p.get_transform().location
+            waypoint = map.get_waypoint(waypoint, project_to_road=False)
+            if waypoint.lane_type == carla.LaneType.Driving:
+                desired_speed = 0
                 
 
     # Get the current speed of the vehicle
@@ -107,8 +110,10 @@ def change_speed(world, some_state, map, vechicle, desired_speed, last_stop_time
     
     # Set the new velocity of the vehicle
     if desired_speed == 0:
+        vechicle.set_simulate_physics(False)
         vechicle.apply_control(carla.VehicleControl(throttle=0.0, brake=1.0, steer = 0))
     elif new_velocity is not None:
+        vechicle.set_simulate_physics(True)
         vechicle.set_target_velocity(new_velocity)
     return last_stop_time
 

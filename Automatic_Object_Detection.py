@@ -239,6 +239,7 @@ class CameraManager(object):
         blp = bp_library.find('sensor.camera.rgb')
         blp.set_attribute('image_size_x', str(width))
         blp.set_attribute('image_size_y', str(height))
+        blp.set_attribute('fov', '50')
         if blp.has_attribute('gamma'):
             blp.set_attribute('gamma', str(gamma_correction))
         self.sensor = self._parent.get_world().spawn_actor(blp, self._camera_transforms[0], attach_to=self._parent, attachment_type=self._camera_transforms[1]) 
@@ -292,13 +293,13 @@ def game_loop(args):
         controller = KeyboardControl(world)
         status = True
         data = True
-        data = False
+        # data = False
         traffic_lights = world.world.get_actors().filter('traffic.traffic_light')
-        night = carla.WeatherParameters(
-            sun_altitude_angle=-90.0  # Makes it fully night
-            )
+        # night = carla.WeatherParameters(
+        #     sun_altitude_angle=-90.0  # Makes it fully night
+        #     )
 
-        world.world.set_weather(night)
+        #world.world.set_weather(night)
 
         for light in traffic_lights:
             light.set_state(carla.TrafficLightState.Green)
@@ -351,17 +352,21 @@ def game_loop(args):
 #        Changing the desired speed based on Sign Detected
             if labels is None:
                 pass
-            elif current_time - state_time < 10.0:
+            elif current_time - state_time < 10.0 and "crosswalk-blue" in labels:
+                some_state = True
+                desired_speed = 0
+            
+            elif current_time - state_time < 2.0:
                 some_state = True
                 desired_speed = 0
                 print ("Pedestrian detected, stopping vehicle");
             
-            elif "crosswalk" in labels:
+            elif "crosswalk-red" in labels:
                 desired_speed = 15/3.6
-                vechicle_speed_state = time.time() - 10
-            elif "pedestrian-crosswalk" in labels: 
+                vechicle_speed_state = time.time() - 25
+            elif "crosswalk-blue"  in labels: 
                 desired_speed = 10/3.6
-                vechicle_speed_state = time.time() - 20
+                vechicle_speed_state = time.time() - 30
             elif "speed-30" in labels:
                 desired_speed = 20/3.6
                 vechicle_speed_state = time.time()
@@ -380,7 +385,7 @@ def game_loop(args):
 
 # Using Behaviour agent
             else:
-                agent.update_information(world, desired_speed*3.6)
+                agent.update_information(world, 0*3.6)
 
                 if len(agent.get_local_planner().waypoints_queue) < num_min_waypoints and args.loop:
                     agent.reroute(spawn_points)

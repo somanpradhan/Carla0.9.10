@@ -15,7 +15,8 @@ AOI_BOTTOM = 600
 # Load the YOLOv8 model
 #model = YOLO("C:\\Users\\acer\\carla\\carla\\Build\\UE4Carla\\0.9.10-dirty\\WindowsNoEditor\\PythonAPI\\OurCode\\train2\\weights\\best.pt").to("cuda")
 #model = YOLO("F:\\augmented\\augmented\\runs\\detect\\train6\\weights\\best.pt").to("cuda")
-model = YOLO("F:\\augmented\\augmented\\best_model.pt").to("cuda")
+#model = YOLO("F:\\augmented\\augmented\\best_model.pt").to("cuda")
+model = YOLO("C:\\Users\\acer\\Documents\\runs\\runs\\detect\\train2\\weights\\best.pt").to("cuda")  # Load the YOLOv8 model (Replace with your trained model path)
 #model = YOLO("yolov8n.pt").to("cuda")
 # model = YOLO("G:\\Training\\Training\\runs\\detect\\train8\\weights\\best.pt").to("cuda")  # Load the YOLOv8 model (Replace with your trained model path)
 #@staticmethod
