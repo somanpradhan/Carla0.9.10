@@ -13,13 +13,8 @@ AOI_TOP = 300
 AOI_BOTTOM = 600
 
 # Load the YOLOv8 model
-#model = YOLO("C:\\Users\\acer\\carla\\carla\\Build\\UE4Carla\\0.9.10-dirty\\WindowsNoEditor\\PythonAPI\\OurCode\\train2\\weights\\best.pt").to("cuda")
-#model = YOLO("F:\\augmented\\augmented\\runs\\detect\\train6\\weights\\best.pt").to("cuda")
-#model = YOLO("F:\\augmented\\augmented\\best_model.pt").to("cuda")
-model = YOLO("C:\\Users\\acer\\Documents\\runs\\runs\\detect\\train2\\weights\\best.pt").to("cuda")  # Load the YOLOv8 model (Replace with your trained model path)
-#model = YOLO("yolov8n.pt").to("cuda")
-# model = YOLO("G:\\Training\\Training\\runs\\detect\\train8\\weights\\best.pt").to("cuda")  # Load the YOLOv8 model (Replace with your trained model path)
-#@staticmethod
+# model = YOLO("C:\\Users\\acer\\Documents\\runs\\runs\\detect\\train2\\weights\\best.pt").to("cuda")  # Load the YOLOv8 model (Replace with your trained model path) #model = YOLO("yolov8n.pt").to("cuda") # 
+model = YOLO("best444.pt").to("cuda")  # Load the YOLOv8 model (Replace with your trained model path) #model = YOLO("yolov8n.pt").to("cuda") 
 def parse_image(image):
     state = False
     if image is None:
@@ -36,6 +31,7 @@ def parse_image(image):
 
     results = model(frame, verbose=False)[0]
     labels = []
+    confs = []
     image_center_x = image.width / 2
     for box in results.boxes:
         x1, y1, x2, y2 = map(int, box.xyxy[0])  
@@ -47,6 +43,7 @@ def parse_image(image):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         if conf >= 0.75:
             labels.append(label)
+            confs.append(conf)
             if label == "pedestrian":
                 # Bounding box
                 bbox_left = x1
@@ -93,4 +90,5 @@ def parse_image(image):
     #     return pygame.surfarray.make_surface(frame.swapaxes(0, 1)), labels
     # surface = process_image_lane(frame)
     # return surface,state, labels
-    return pygame.surfarray.make_surface(frame.swapaxes(0, 1)), state, labels
+   
+    return pygame.surfarray.make_surface(frame.swapaxes(0, 1)), state, [labels, confs]

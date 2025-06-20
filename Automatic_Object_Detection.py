@@ -293,7 +293,7 @@ def game_loop(args):
         controller = KeyboardControl(world)
         status = True
         data = True
-        # data = False
+        data = False
         traffic_lights = world.world.get_actors().filter('traffic.traffic_light')
         # night = carla.WeatherParameters(
         #     sun_altitude_angle=-90.0  # Makes it fully night
@@ -385,7 +385,7 @@ def game_loop(args):
 
 # Using Behaviour agent
             else:
-                agent.update_information(world, 0*3.6)
+                agent.update_information(world, desired_speed*3.6)
 
                 if len(agent.get_local_planner().waypoints_queue) < num_min_waypoints and args.loop:
                     agent.reroute(spawn_points)
